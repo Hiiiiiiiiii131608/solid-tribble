@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <meta charset="UTF-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+ <title>Recursive Iframe Demo</title>
+ <style>
+ * {
+ box-sizing: border-box;
+ }
+ html, body {
+ margin: 0;
+ padding: 0;
+ height: 100%;
+ background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+ color: #e5e7eb;
+ font-family: system-ui, -apple-system, sans-serif;
+ }
+ .container {
+ height: 100%;
+ padding: 16px;
+ display: flex;
+ flex-direction: column;
+ gap: 12px;
+ border: 2px solid hsla(0, 0%, 100%, calc(0.3 - var(--depth) * 0.002));
+ border-radius: 8px;
+ transition: all 0.3s ease;
+ background: linear-gradient(135deg, 
+  hsla(220, 50%, calc(10% - var(--depth) * 0.5%), 0.3),
+  hsla(280, 50%, calc(15% - var(--depth) * 0.5%), 0.2)
+ );
+ }
+ .header {
+ display: flex;
+ justify-content: space-between;
+ align-items: center;
+ gap: 12px;
+ flex-wrap: wrap;
+ }
+ .info {
+ font-size: 14px;
+ font-weight: 600;
+ opacity: 0.9;
+ padding: 8px 12px;
+ background: rgba(255,255,255,0.1);
+ border-radius: 6px;
+ backdrop-filter: blur(10px);
+ }
+ .depth-badge {
+ display: inline-block;
+ background: linear-gradient(135deg, #6366f1, #8b5cf6);
+ padding: 4px 10px;
+ border-radius: 12px;
+ font-weight: 700;
+ font-size: 16px;
+ box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+ }
+ .controls {
+ display: flex;
+ gap: 8px;
+ flex-wrap: wrap;
+ }
+ button {
+ padding: 8px 16px;
+ background: rgba(255,255,255,0.15);
+ border: 1px solid rgba(255,255,255,0.3);
+ border-radius: 6px;
+ color: white;
+ font-size: 13px;
+ cursor: pointer;
+ transition: all 0.2s;
+ backdrop-filter: blur(10px);
+ font-weight: 500;
+ }
+ button:hover {
+ background: rgba(255,255,255,0.25);
+ border-color: rgba(255,255,255,0.5);
+ transform: translateY(-1px);
+ }
+ button:active {
+ transform: translateY(0);
+ }
+ .slider-group {
+ display: flex;
+ align-items: center;
+ gap: 8px;
+ background: rgba(255,255,255,0.1);
+ padding: 6px 12px;
+ border-radius: 6px;
+ backdrop-filter: blur(10px);
+ }
+ input[type="range"] {
+ width: 120px;
+ height: 4px;
+ background: rgba(255,255,255,0.2);
+ border-radius: 2px;
+ outline: none;
+ -webkit-appearance: none;
+ }
+ input[type="range"]::-webkit-slider-thumb {
+ -webkit-appearance: none;
+ width: 16px;
+ height: 16px;
+ background: linear-gradient(135deg, #6366f1, #8b5cf6);
+ border-radius: 50%;
+ cursor: pointer;
+ box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+ }
+ input[type="range"]::-moz-range-thumb {
+ width: 16px;
+ height: 16px;
+ background: linear-gradient(135deg, #6366f1, #8b5cf6);
+ border-radius: 50%;
+ cursor: pointer;
+ border: none;
+ box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+ }
+ #frame-slot {
+ flex: 1;
+ position: relative;
+ min-height: 0;
+ }
+ iframe {
+ position: absolute;
+ top: 0;
+ left: 0;
+ width: 100%;
+ height: 100%;
+ border: 2px dashed rgba(255,255,255,0.35);
+ border-radius: 12px;
+ background: #020617;
+ animation: fadeIn 0.3s ease;
+ }
+ @keyframes fadeIn {
+ from { opacity: 0; transform: scale(0.98); }
+ to { opacity: 1; transform: scale(1); }
+ }
+ .end-message {
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ height: 100%;
+ font-size: 18px;
+ font-weight: 600;
+ opacity: 0.7;
+ background: radial-gradient(circle, rgba(99,102,241,0.2), transparent);
+ border-radius: 12px;
+ animation: pulse 2s ease-in-out infinite;
+ }
+ @keyframes pulse {
+ 0%, 100% { opacity: 0.7; }
+ 50% { opacity: 0.9; }
+ }
+ </style>
+</head>
+<body>
+ <div class="container">
+ <div class="header">
+ <div class="info">
+  <span class="depth-badge" id="depth-display">0</span>
+  <span style="opacity: 0.7; margin-left: 8px;" id="max-display"></span>
+ </div>
+ <div class="controls" id="controls"></div>
+ </div>
+ <div id="frame-slot"></div>
+ </div>
+ <script>
+ const params = new URLSearchParams(window.location.search);
+ const depth = Number(params.get('depth') ?? 0);
+ let maxDepth = Number(params.get('max') ?? 15);
+ 
+ // Update CSS custom property for depth
+ document.documentElement.style.setProperty('--depth', depth);
+ 
+ // Update display
+ document.getElementById('depth-display').textContent = depth;
+ document.getElementById('max-display').textContent = `/ ${maxDepth}`;
+ 
+ // Only show controls at depth 0
+ if (depth === 0) {
+ const controls = document.getElementById('controls');
+ 
+ // Max depth slider
+ const sliderGroup = document.createElement('div');
+ sliderGroup.className = 'slider-group';
+ sliderGroup.innerHTML = `
+  <label style="font-size: 12px; opacity: 0.9;">Max Depth:</label>
+  <input type="range" id="max-slider" min="5" max="50" value="${maxDepth}" />
+  <span id="slider-value" style="font-size: 12px; font-weight: 600; min-width: 25px;">${maxDepth}</span>
+ `;
+ controls.appendChild(sliderGroup);
+ 
+ // Reset button
+ const resetBtn = document.createElement('button');
+ resetBtn.textContent = '🔄 Reset';
+ resetBtn.onclick = () => {
+  window.location.href = `${location.pathname}?depth=0&max=${maxDepth}`;
+ };
+ controls.appendChild(resetBtn);
+ 
+ // Slider interaction
+ const slider = document.getElementById('max-slider');
+ const sliderValue = document.getElementById('slider-value');
+ slider.oninput = (e) => {
+  sliderValue.textContent = e.target.value;
+ };
+ slider.onchange = (e) => {
+  maxDepth = Number(e.target.value);
+  window.location.href = `${location.pathname}?depth=0&max=${maxDepth}`;
+ };
+ }
+ 
+ // Create iframe or end message
+ const frameSlot = document.getElementById('frame-slot');
+ if (depth < maxDepth) {
+ const iframe = document.createElement('iframe');
+ iframe.src = `${location.pathname}?depth=${depth + 1}&max=${maxDepth}`;
+ frameSlot.appendChild(iframe);
+ } else {
+ const end = document.createElement('div');
+ end.className = 'end-message';
+ end.textContent = '🎯 Recursion Complete';
+ frameSlot.appendChild(end);
+ }
+ </script>
+</body>
+</html>
